@@ -30,6 +30,7 @@ def main():
         y, sr = librosa.load(str(audio_file), sr=22050)
         duration = librosa.get_duration(y=y, sr=sr)
         tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
+        tempo = float(np.asarray(tempo).flatten()[0])
         rms = librosa.feature.rms(y=y)[0]
         times_rms = librosa.times_like(rms, sr=sr)
         chroma = librosa.feature.chroma_stft(y=y, sr=sr)

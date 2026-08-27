@@ -49,6 +49,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse, parse_qs, urlencode
+
+
+def _fix_encoding(s: str) -> str:
+    """Fix Latin-1 mis-decoded UTF-8 strings from BaseHTTPRequestHandler."""
+    try:
+        return s.encode('latin-1').decode('utf-8')
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        return s
 import urllib.request
 import urllib.error
 
@@ -399,7 +407,7 @@ class EryuHandler(BaseHTTPRequestHandler):
             proxy_url = os.environ.get("NETEASE_PROXY_URL", "")
             proxy_key = os.environ.get("NETEASE_PROXY_KEY", "")
             self._send_json(200, {
-                "ok": True, "version": "1.3", "service": "eryu",
+                "ok": True, "version": "1.4", "service": "eryu",
                 "proxy_configured": bool(proxy_url),
                 "proxy_url_prefix": proxy_url[:30] if proxy_url else "",
                 "proxy_key_set": bool(proxy_key),
@@ -569,7 +577,7 @@ class EryuHandler(BaseHTTPRequestHandler):
 
     def _handle_music_search(self):
         qs = parse_qs(urlparse(self.path).query)
-        keyword = qs.get("q", [""])[0]
+        keyword = _fix_encoding(qs.get("q", [""])[0])
         if not keyword:
             self._send_json(400, {"error": "missing q"})
             return

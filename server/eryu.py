@@ -208,7 +208,36 @@ class EryuHandler(BaseHTTPRequestHandler):
     def _netease_request(self, url: str, data: bytes | None = None,
                          extra_headers: dict[str, str] | None = None,
                          timeout: int = 10) -> Any:
-        """Make an authenticated request to Netease API and return parsed JSON."""
+        """Make an authenticated request to Netease API and return parsed JSON.
+        
+        If NETEASE_PROXY_URL is configured, routes requests through a Cloudflare
+        Worker proxy to avoid overseas IP blocks from Netease.
+        """
+        proxy_url = os.environ.get("NETEASE_PROXY_URL", "")
+        proxy_key = os.environ.get("NETEASE_PROXY_KEY", "")
+        
+        if proxy_url:
+            # Route through CF Worker proxy
+            # e.g. https://music.163.com/api/search/get?s=x
+            #   -> https://nanzhi.baby/netease/api/search/get?s=x&key=xxx
+            from urllib.parse import urlparse as _up
+            parsed = _up(url)
+            target = proxy_url.rstrip("/") + parsed.path
+            if parsed.query:
+                target += "?" + parsed.query + "&key=" + proxy_key
+            else:
+                target += "?key=" + proxy_key
+            headers = {
+                "X-Proxy-Key": proxy_key,
+                "User-Agent": "eryu-server/1.0",
+            }
+            if data is not None:
+                headers["Content-Type"] = "application/x-www-form-urlencoded"
+            req = urllib.request.Request(target, data=data, headers=headers)
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                return json.loads(resp.read())
+        
+        # Direct mode (no proxy)
         headers = {
             "Cookie": self._netease_cookie(),
             "Referer": "https://music.163.com",
@@ -315,10 +344,30 @@ class EryuHandler(BaseHTTPRequestHandler):
 
         try:
             _dl(audio_url)
-        except urllib.error.HTTPError:
+        except (urllib.error.HTTPError, urllib.error.URLError):
             # CDN fallback: m*.music.126.net -> m701.music.126.net
             fallback = re.sub(r'm\d+\.music\.126\.net', 'm701.music.126.net', audio_url)
-            _dl(fallback)
+            try:
+                _dl(fallback)
+            except (urllib.error.HTTPError, urllib.error.URLError):
+                # Final fallback: try via proxy if configured
+                proxy_url = os.environ.get("NETEASE_PROXY_URL", "")
+                proxy_key = os.environ.get("NETEASE_PROXY_KEY", "")
+                if proxy_url:
+                    # Route audio download through proxy
+                    proxy_audio = proxy_url.rstrip("/") + "/audio-proxy?url=" + urllib.parse.quote(audio_url) + "&key=" + proxy_key
+                    areq = urllib.request.Request(proxy_audio, headers={"User-Agent": "eryu-server/1.0"})
+                    tmp = cache_file.with_suffix(".tmp")
+                    with urllib.request.urlopen(areq, timeout=120) as aresp:
+                        with open(tmp, "wb") as f:
+                            while True:
+                                chunk = aresp.read(65536)
+                                if not chunk:
+                                    break
+                                f.write(chunk)
+                    tmp.rename(cache_file)
+                else:
+                    raise
 
     def _fetch_music_url(self, song_id) -> bool:
         """Ensure audio is cached, return True if available."""

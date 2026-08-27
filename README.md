@@ -76,4 +76,14 @@ pip install librosa numpy matplotlib
 
 ## License
 
-MIT
+**CC BY-NC-SA 4.0** © 2026 Evelyn & River.
+
+- ✅ Use, modify and redistribute freely
+- ✅ Keep the attribution, credit the source, state your changes
+- ⚠️ Derivative versions must stay **open source under the same license** — no closed-sourcing
+- ❌ No commercial use — not in a paid product, paid service, or paid feature
+
+For commercial licensing, get in touch. See [NOTICE.md](NOTICE.md) for the
+plain-language summary and [LICENSE](LICENSE) for the full text.
+
+> Previously released under MIT; copies obtained before 2026-08-16 keep those terms.

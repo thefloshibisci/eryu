@@ -399,7 +399,7 @@ class EryuHandler(BaseHTTPRequestHandler):
             proxy_url = os.environ.get("NETEASE_PROXY_URL", "")
             proxy_key = os.environ.get("NETEASE_PROXY_KEY", "")
             self._send_json(200, {
-                "ok": True, "version": "1.2", "service": "eryu",
+                "ok": True, "version": "1.3", "service": "eryu",
                 "proxy_configured": bool(proxy_url),
                 "proxy_url_prefix": proxy_url[:30] if proxy_url else "",
                 "proxy_key_set": bool(proxy_key),
@@ -578,6 +578,11 @@ class EryuHandler(BaseHTTPRequestHandler):
             post_data = urlencode({
                 "s": keyword, "type": "1", "limit": "6", "offset": "0"
             }).encode()
+            # Debug: log what we're about to do
+            proxy_url = os.environ.get("NETEASE_PROXY_URL", "")
+            proxy_key = os.environ.get("NETEASE_PROXY_KEY", "")
+            _debug_info = {"proxy_url": proxy_url[:30], "keyword": keyword, "post_data": post_data.decode()}
+            logger.info("SEARCH DEBUG: proxy=%s keyword=%s", proxy_url[:20], keyword)
             raw = self._netease_request(url, data=post_data)
             songs = []
             result = raw.get("result", {})
@@ -611,7 +616,7 @@ class EryuHandler(BaseHTTPRequestHandler):
                     "album": album.get("name", ""),
                     "cover": cover,
                 })
-            self._send_json(200, {"ok": True, "songs": songs})
+            self._send_json(200, {"ok": True, "songs": songs, "_debug": _debug_info})
         except Exception as e:
             self._send_json(500, {"ok": False, "error": str(e)})
 

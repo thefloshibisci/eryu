@@ -217,23 +217,24 @@ class EryuHandler(BaseHTTPRequestHandler):
         proxy_key = os.environ.get("NETEASE_PROXY_KEY", "")
         
         if proxy_url:
-            # Route through CF Worker proxy
-            # e.g. https://music.163.com/api/search/get?s=x
-            #   -> https://nanzhi.baby/netease/api/search/get?s=x&key=xxx
+            # Route through CF Worker proxy as GET
+            # POST body is converted to URL params (Netease accepts both)
+            # e.g. POST https://music.163.com/api/search/get  body: s=x&type=1
+            #   -> GET https://nanzhi.baby/netease/api/search/get?s=x&type=1&key=xxx
             from urllib.parse import urlparse as _up
             parsed = _up(url)
             target = proxy_url.rstrip("/") + parsed.path
+            params = "key=" + proxy_key
             if parsed.query:
-                target += "?" + parsed.query + "&key=" + proxy_key
-            else:
-                target += "?key=" + proxy_key
+                params += "&" + parsed.query
+            if data is not None:
+                params += "&" + data.decode("utf-8")
+            target += "?" + params
             headers = {
                 "X-Proxy-Key": proxy_key,
                 "User-Agent": "eryu-server/1.0",
             }
-            if data is not None:
-                headers["Content-Type"] = "application/x-www-form-urlencoded"
-            req = urllib.request.Request(target, data=data, headers=headers)
+            req = urllib.request.Request(target, data=None, headers=headers)
             with urllib.request.urlopen(req, timeout=30) as resp:
                 return json.loads(resp.read())
         

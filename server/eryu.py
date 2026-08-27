@@ -395,7 +395,15 @@ class EryuHandler(BaseHTTPRequestHandler):
 
         # Health check (no auth)
         if path == "/health":
-            self._send_json(200, {"ok": True, "version": "1.0", "service": "eryu"})
+            proxy_url = os.environ.get("NETEASE_PROXY_URL", "")
+            proxy_key = os.environ.get("NETEASE_PROXY_KEY", "")
+            self._send_json(200, {
+                "ok": True, "version": "1.1", "service": "eryu",
+                "proxy_configured": bool(proxy_url),
+                "proxy_url_prefix": proxy_url[:30] if proxy_url else "",
+                "proxy_key_set": bool(proxy_key),
+                "env_keys": [k for k in os.environ.keys() if "NETEASE" in k or "PROXY" in k],
+            })
             return
 
         # Static: cached music files (no auth — URLs are unguessable song IDs)

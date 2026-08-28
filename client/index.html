@@ -1649,8 +1649,39 @@ onSongChange(() => {
   }
 });
 
+// ── Remote Play Polling ──
+// Poll server for remote-pushed songs (e.g. pushed by AI companion)
+let remotePollTimer = null;
+async function pollRemote() {
+  try {
+    const d = await api('/music/remote');
+    if (d.ok && d.song && d.song.songId) {
+      const s = {
+        songId: d.song.songId,
+        name: d.song.name || 'Unknown',
+        artist: d.song.artist || '',
+        cover: d.song.cover || '',
+        album: d.song.album || ''
+      };
+      showToast('♪ ' + s.name + ' — ' + s.artist);
+      playSong(s);
+    }
+  } catch (e) { /* silent */ }
+}
+function startRemotePolling() {
+  if (remotePollTimer) return;
+  remotePollTimer = setInterval(pollRemote, 5000);
+  pollRemote(); // immediate first check
+}
+
 // ── Init ──
 init();
+// Start polling after auth is done
+const _origRenderApp = renderApp;
+renderApp = function() {
+  _origRenderApp.apply(this, arguments);
+  startRemotePolling();
+};
 </script>
 </body>
 </html>

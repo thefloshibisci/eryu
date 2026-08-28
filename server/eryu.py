@@ -404,15 +404,7 @@ class EryuHandler(BaseHTTPRequestHandler):
 
         # Health check (no auth)
         if path == "/health":
-            proxy_url = os.environ.get("NETEASE_PROXY_URL", "")
-            proxy_key = os.environ.get("NETEASE_PROXY_KEY", "")
-            self._send_json(200, {
-                "ok": True, "version": "1.5", "service": "eryu",
-                "proxy_configured": bool(proxy_url),
-                "proxy_url_prefix": proxy_url[:30] if proxy_url else "",
-                "proxy_key_set": bool(proxy_key),
-                "env_keys": [k for k in os.environ.keys() if "NETEASE" in k or "PROXY" in k],
-            })
+            self._send_json(200, {"ok": True, "version": "2.0", "service": "eryu"})
             return
 
         # Static: cached music files (no auth — URLs are unguessable song IDs)
@@ -424,31 +416,6 @@ class EryuHandler(BaseHTTPRequestHandler):
         if path == "/" or not path.startswith("/music") and not path.startswith("/health"):
             # Serve frontend static files
             self._serve_static(path)
-            return
-
-        # Debug: test proxy directly
-        if path == "/debug/proxy":
-            proxy_url = os.environ.get("NETEASE_PROXY_URL", "")
-            proxy_key = os.environ.get("NETEASE_PROXY_KEY", "")
-            if not proxy_url:
-                self._send_json(200, {"error": "no proxy configured"})
-                return
-            try:
-                from urllib.parse import urlencode as _ue
-                test_data = _ue({"s": "晚风", "type": "1", "limit": "3", "offset": "0"})
-                from urllib.parse import urlparse as _up
-                test_url = "https://music.163.com/api/search/get"
-                parsed = _up(test_url)
-                target = proxy_url.rstrip("/") + parsed.path
-                params = "key=" + proxy_key + "&" + test_data
-                target += "?" + params
-                headers_d = {"X-Proxy-Key": proxy_key, "User-Agent": "eryu-debug/1.0"}
-                debug_req = urllib.request.Request(target, data=None, headers=headers_d)
-                with urllib.request.urlopen(debug_req, timeout=30) as resp:
-                    raw_text = resp.read().decode("utf-8")
-                    self._send_json(200, {"ok": True, "target_url": target, "response_preview": raw_text[:500]})
-            except Exception as e:
-                self._send_json(200, {"ok": False, "error": str(e), "proxy_url": proxy_url})
             return
 
         # All /music/* endpoints below require auth
@@ -586,11 +553,6 @@ class EryuHandler(BaseHTTPRequestHandler):
             post_data = urlencode({
                 "s": keyword, "type": "1", "limit": "6", "offset": "0"
             }).encode()
-            # Debug: log what we're about to do
-            proxy_url = os.environ.get("NETEASE_PROXY_URL", "")
-            proxy_key = os.environ.get("NETEASE_PROXY_KEY", "")
-            _debug_info = {"proxy_url": proxy_url[:30], "keyword": keyword, "post_data": post_data.decode()}
-            logger.info("SEARCH DEBUG: proxy=%s keyword=%s", proxy_url[:20], keyword)
             raw = self._netease_request(url, data=post_data)
             songs = []
             result = raw.get("result", {})
@@ -624,7 +586,7 @@ class EryuHandler(BaseHTTPRequestHandler):
                     "album": album.get("name", ""),
                     "cover": cover,
                 })
-            self._send_json(200, {"ok": True, "songs": songs, "_debug": _debug_info})
+            self._send_json(200, {"ok": True, "songs": songs})
         except Exception as e:
             self._send_json(500, {"ok": False, "error": str(e)})
 

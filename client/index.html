@@ -481,7 +481,7 @@ img { display: block; }
   animation: spin 0.6s linear infinite; margin: 20px auto;
 }
 
-/* ── Fix: #app > * rule was overriding .lyrics-view/.memory-view positioning ── */
+/* Overlay stacking fix: keep modals above the #app > * positioning rule */
 #app > .lyrics-view { position: fixed; z-index: 100; }
 #app > .memory-view { position: fixed; z-index: 200; }
 .ly-lines { touch-action: pan-y; }
@@ -1695,7 +1695,7 @@ function startRemotePolling() {
 
 // ── Init ──
 init();
-// Start polling unconditionally — silent 403s when not yet authed
+// Poll for remote-pushed songs (AI companion can queue songs)
 startRemotePolling();
 </script>
 </body>

@@ -407,7 +407,7 @@ class EryuHandler(BaseHTTPRequestHandler):
             proxy_url = os.environ.get("NETEASE_PROXY_URL", "")
             proxy_key = os.environ.get("NETEASE_PROXY_KEY", "")
             self._send_json(200, {
-                "ok": True, "version": "1.4", "service": "eryu",
+                "ok": True, "version": "1.5", "service": "eryu",
                 "proxy_configured": bool(proxy_url),
                 "proxy_url_prefix": proxy_url[:30] if proxy_url else "",
                 "proxy_key_set": bool(proxy_key),
@@ -1191,9 +1191,12 @@ class EryuHandler(BaseHTTPRequestHandler):
             self._send_json(200, {"ok": False})
 
     def _handle_music_remote_post(self, body: dict):
+        # Accept both wrapped {"song": {...}} and flat {"songId": ..., "name": ...}
         song = body.get("song")
-        if not song:
-            self._send_json(400, {"error": "missing song"})
+        if not isinstance(song, dict) and body.get("songId"):
+            song = body
+        if not song or not song.get("songId"):
+            self._send_json(400, {"error": "missing song", "received_keys": list(body.keys())})
             return
         f = self.state.data_dir / "music_remote.json"
         f.parent.mkdir(parents=True, exist_ok=True)

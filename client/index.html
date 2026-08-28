@@ -1676,12 +1676,8 @@ function startRemotePolling() {
 
 // ── Init ──
 init();
-// Start polling after auth is done
-const _origRenderApp = renderApp;
-renderApp = function() {
-  _origRenderApp.apply(this, arguments);
-  startRemotePolling();
-};
+// Start polling unconditionally — silent 403s when not yet authed
+startRemotePolling();
 </script>
 </body>
 </html>

@@ -480,6 +480,11 @@ img { display: block; }
   border-top-color: var(--accent); border-radius: 50%;
   animation: spin 0.6s linear infinite; margin: 20px auto;
 }
+
+/* ── Fix: #app > * rule was overriding .lyrics-view/.memory-view positioning ── */
+#app > .lyrics-view { position: fixed; z-index: 100; }
+#app > .memory-view { position: fixed; z-index: 200; }
+.ly-lines { touch-action: pan-y; }
 </style>
 </head>
 <body>
@@ -1341,6 +1346,8 @@ function renderNpBar() {
 
 let lyricLines = [];
 let lyricTransMap = new Map();
+let lyricsUserScrolling = false;
+let lyricsUserScrollTimer = null;
 let currentLyricIdx = -1;
 let lyricsDragging = false;
 let lyricsDragRatio = 0;
@@ -1413,6 +1420,18 @@ function renderLyricsView() {
 
   // Seek bar events
   bindSeekBar();
+
+  // Pause auto-scroll while user scrolls the lyrics
+  const linesEl = document.getElementById('ly-lines-container');
+  if (linesEl) {
+    const pauseAuto = () => {
+      lyricsUserScrolling = true;
+      clearTimeout(lyricsUserScrollTimer);
+      lyricsUserScrollTimer = setTimeout(() => { lyricsUserScrolling = false; }, 4000);
+    };
+    linesEl.addEventListener('touchstart', pauseAuto, { passive: true });
+    linesEl.addEventListener('wheel', pauseAuto, { passive: true });
+  }
 }
 
 function bindSeekBar() {
@@ -1547,8 +1566,8 @@ function renderLyricsProgress() {
       lyricsLineEls.forEach((el, i) => {
         el.classList.toggle('active', i === idx);
       });
-      // Auto-scroll
-      if (idx >= 0 && lyricsLineEls[idx]) {
+      // Auto-scroll (paused for 4s after user scrolls)
+      if (!lyricsUserScrolling && idx >= 0 && lyricsLineEls[idx]) {
         const container = document.getElementById('ly-lines-container');
         const el = lyricsLineEls[idx];
         if (container) {
